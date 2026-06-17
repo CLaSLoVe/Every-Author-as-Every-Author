@@ -2,6 +2,10 @@
 
 The author block is an important component of a paper: $n$ authors are assigned to $n$ positions, and a strict ordering is made to appear as though it can summarize a collaboration that is often difficult to quantify. This practice may create conflicts among authors and, in turn, affect academic development. Conventional approaches in academia use randomization or alphabetical ordering, together with an explicit statement that the order carries no information. Yet this remains unfair: the order is still printed, and the reader's attention still falls on the first element. Prior work has addressed this issue by typesetting every author at the same position, but this introduces a serious obstacle to readability. We study the opposite, high-entropy regime. We regard the author block as a container and author names as an ideal gas diffusing within it. Each author's name appears several times per page, in the same font and at the same size, with positions drawn independently and uniformly over the page. Thus, every author has the same distribution. This makes it difficult for readers to identify a unique first author and thereby ensures fairness.
 
+<p align="center">
+  <img src="pic.jpg" alt="Ideal-gas author block" width="45%">
+</p>
+
 ## Configuration
 
 Set in the preamble before `\begin{document}`:
