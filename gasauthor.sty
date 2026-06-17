@@ -1,0 +1,233 @@
+% gasauthor.sty — Ideal-gas author block for LaTeX
+% tcolorbox-free version: works on minimal TeX Live/BasicTeX installs.
+%
+% Bibliography (recommended — BibTeX workflow):
+%   1. Add entries to references.bib
+%   2. Cite with \cite{key} in the text
+%   3. At the end of the document:
+%        \bibliographystyle{gasbib}
+%        \bibliography{references}
+%   4. Build: pdflatex -> bibtex -> pdflatex -> pdflatex
+%   Citations are numbered [1], [2], ... in order of first appearance (unsrt).
+%
+% Manual fallback (no BibTeX):
+%   \begin{gasbibliography}{9}
+%   \gasbibitem{key}{Author A,Author B}{remaining reference text, no authors}
+%   \end{gasbibliography}
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{gasauthor}[2026/06/11 Ideal-gas author block, tcolorbox-free]
+
+\RequirePackage{xcolor}
+\RequirePackage{tikz}
+\RequirePackage{eso-pic}
+
+% ------------------------- defaults -----------------------------------
+\def\GasAuthors{Dian Jin,Weihao Cheng,Junze Yuan}
+\def\GasCopies{36}
+\def\GasAlpha{0.2}
+\def\GasSeed{20260611}
+\def\GasSat{0.60}
+\def\GasLuma{0.42}
+\def\GasHashMult{71}
+\def\GasFont{\sffamily\bfseries\fontsize{10.5}{10.5}\selectfont}
+% ----------------------------------------------------------------------
+
+% --- hash a name to an integer in [0,996]: h <- (71*h + byte) mod 997.
+\makeatletter
+\newcounter{gashash}
+\newcommand\GasHash[1]{%
+  \setcounter{gashash}{7}%
+  \@tfor\gas@t:=#1\do{%
+    \setcounter{gashash}{\numexpr\value{gashash}*\GasHashMult+\expandafter`\gas@t\relax}%
+    \setcounter{gashash}{\numexpr\value{gashash}-(\value{gashash}/997)*997\relax}%
+    \ifnum\value{gashash}<0 \setcounter{gashash}{\numexpr\value{gashash}+997\relax}\fi
+  }}
+\makeatother
+
+% --- iso-luminant color from hue.
+\newcommand\GasIsoColor[2]{%
+  \pgfmathsetmacro\gashp{mod(#2,360)/60}%
+  \pgfmathsetmacro\gasC{\GasSat}%
+  \pgfmathsetmacro\gasX{\GasSat*(1-abs(mod(\gashp,2)-1))}%
+  \pgfmathsetmacro\gasm{1-\GasSat}%
+  \pgfmathsetmacro\gasR{ifthenelse(\gashp<1,\gasC,ifthenelse(\gashp<2,\gasX,ifthenelse(\gashp<3,0,ifthenelse(\gashp<4,0,ifthenelse(\gashp<5,\gasX,\gasC)))))+\gasm}%
+  \pgfmathsetmacro\gasG{ifthenelse(\gashp<1,\gasX,ifthenelse(\gashp<2,\gasC,ifthenelse(\gashp<3,\gasC,ifthenelse(\gashp<4,\gasX,0))))+\gasm}%
+  \pgfmathsetmacro\gasB{ifthenelse(\gashp<2,0,ifthenelse(\gashp<3,\gasX,ifthenelse(\gashp<5,\gasC,\gasX)))+\gasm}%
+  \pgfmathsetmacro\gasY{0.299*\gasR+0.587*\gasG+0.114*\gasB}%
+  \pgfmathsetmacro\gasV{min(1,\GasLuma/\gasY)}%
+  \pgfmathsetmacro\gasRf{\gasV*\gasR}%
+  \pgfmathsetmacro\gasGf{\gasV*\gasG}%
+  \pgfmathsetmacro\gasBf{\gasV*\gasB}%
+  \definecolor{#1}{rgb}{\gasRf,\gasGf,\gasBf}}
+
+% --- full-page author gas.
+\newcommand\GasBackground{%
+  \begin{tikzpicture}[overlay]
+    \clip (0,0) rectangle (\paperwidth,\paperheight);
+    \foreach \gasround in {1,...,\GasCopies}{%
+      \foreach \gasname in \GasAuthors{%
+        \expandafter\GasHash\expandafter{\gasname}%
+        \pgfmathsetmacro\gashue{\thegashash/997*360}%
+        \GasIsoColor{gascol}{\gashue}%
+        \edef\gasrx{\the\numexpr\pdfuniformdeviate 10001\relax}%
+        \edef\gasry{\the\numexpr\pdfuniformdeviate 10001\relax}%
+        \pgfmathsetmacro\gasx{\gasrx/10000*\paperwidth}%
+        \pgfmathsetmacro\gasy{\gasry/10000*\paperheight}%
+        \node[text=gascol,text opacity=\GasAlpha,inner sep=0pt]
+          at (\gasx pt,\gasy pt) {\GasFont\gasname};%
+      }}%
+  \end{tikzpicture}}
+\AddToShipoutPictureBG{\GasBackground}
+
+% -------------------- bibliography author gas -------------------------
+% Each item is stacked in three layers inside one box:
+%   (1) opaque white — masks global page gas
+%   (2) cited-author gas — scattered over the box interior
+%   (3) reference body — typeset on top for legibility
+% Target total author-name instances per bibliography item. Split as evenly
+% as possible across cited authors (12 over 2 authors -> 6 each; over 5 -> 3,3,2,2,2).
+\def\RefGasPerAuthor{5}
+\def\RefGasAlpha{0.2}
+\newcommand\RefGasFont{\sffamily\bfseries\fontsize{6.2}{6.2}\selectfont}
+
+\def\RefBoxFrameColor{black!35}
+\def\RefBoxFillColor{white}
+\def\RefBoxRule{0.4pt}
+\def\RefBoxSep{4pt}
+\newlength{\RefBoxVPad}
+\setlength{\RefBoxVPad}{1.5\baselineskip}
+
+\makeatletter
+\newsavebox{\gas@refbox}
+
+% Estimate rendered name size inside a tikzpicture (TeX measurement breaks there).
+\newcommand{\GasNameDimEstimate}[1]{%
+  \setcounter{gashash}{0}%
+  \@tfor\gas@c:=#1\do{\advance\c@gashash by 1}%
+  \pgfmathsetlengthmacro\gas@namew{\value{gashash}*3.8pt+6pt}%
+  \pgfmathsetlengthmacro\gas@nameh{7.8pt}%
+}
+
+% Layer 2 helper: scatter cited authors inside a rectangle of given size.
+% \newcommand{\RefGasOverlay}[3]{%
+%   \begin{scope}
+%     \clip (0,0) rectangle (#1,#2);
+%     \@tempcnta=0
+%     \@for\gas@a:=#3\do{\advance\@tempcnta by 1}%
+%     \ifnum\@tempcnta<1 \@tempcnta=1\fi
+%     \@tempcntb=0
+%     \@for\gasname:=#3\do{%
+%       \advance\@tempcntb by 1
+%       \edef\gas@idx{\the\@tempcntb}%
+%       \edef\gas@n{\the\@tempcnta}%
+%       \pgfmathtruncatemacro\gas@q{int(\RefGasTotal/\gas@n)}%
+%       \pgfmathtruncatemacro\gas@r{\RefGasTotal-\gas@q*\gas@n}%
+%       \pgfmathtruncatemacro\gas@copies{\gas@q+(\gas@idx<=\gas@r?1:0)}%
+%       \expandafter\GasNameDimEstimate\expandafter{\gasname}%
+%       \pgfmathsetlengthmacro\gas@xmin{\gas@namew/2}%
+%       \pgfmathsetlengthmacro\gas@xmax{#1-\gas@namew/2}%
+%       \pgfmathsetlengthmacro\gas@ymin{\gas@nameh/2}%
+%       \pgfmathsetlengthmacro\gas@ymax{#2-\gas@nameh/2}%
+%       \foreach \gas@k in {1,...,\gas@copies}{%
+%         \expandafter\GasHash\expandafter{\gasname}%
+%         \pgfmathsetmacro\gashue{\thegashash/997*360}%
+%         \GasIsoColor{gasrefcol}{\gashue}%
+%         \edef\gasrx{\the\numexpr\pdfuniformdeviate 10001\relax}%
+%         \edef\gasry{\the\numexpr\pdfuniformdeviate 10001\relax}%
+%         \pgfmathparse{\gas@xmax<\gas@xmin ? 1 : 0}%
+%         \ifnum\pgfmathresult=1
+%           \pgfmathsetlengthmacro\gasx{#1/2}%
+%         \else
+%           \pgfmathsetlengthmacro\gasx{\gas@xmin+\gasrx/10000*(\gas@xmax-\gas@xmin)}%
+%         \fi
+%         \pgfmathparse{\gas@ymax<\gas@ymin ? 1 : 0}%
+%         \ifnum\pgfmathresult=1
+%           \pgfmathsetlengthmacro\gasy{#2/2}%
+%         \else
+%           \pgfmathsetlengthmacro\gasy{\gas@ymin+\gasry/10000*(\gas@ymax-\gas@ymin)}%
+%         \fi
+%         \node[text=gasrefcol,opacity=\RefGasAlpha,inner sep=0pt,anchor=center]
+%           at (\gasx,\gasy) {\RefGasFont\gasname};%
+%       }%
+%     }%
+%   \end{scope}%
+% }
+
+
+% Layer 2 helper: scatter cited authors inside a rectangle of given size.
+% Fair version: every cited author appears exactly \RefGasPerAuthor times.
+\newcommand{\RefGasOverlay}[3]{%
+  \begin{scope}
+    \clip (0,0) rectangle (#1,#2);
+    \@for\gasname:=#3\do{%
+      \pgfmathtruncatemacro\gas@copies{\RefGasPerAuthor}%
+      \expandafter\GasNameDimEstimate\expandafter{\gasname}%
+      \pgfmathsetlengthmacro\gas@xmin{\gas@namew/2}%
+      \pgfmathsetlengthmacro\gas@xmax{#1-\gas@namew/2}%
+      \pgfmathsetlengthmacro\gas@ymin{\gas@nameh/2}%
+      \pgfmathsetlengthmacro\gas@ymax{#2-\gas@nameh/2}%
+      \foreach \gas@k in {1,...,\gas@copies}{%
+        \expandafter\GasHash\expandafter{\gasname}%
+        \pgfmathsetmacro\gashue{\thegashash/997*360}%
+        \GasIsoColor{gasrefcol}{\gashue}%
+        \edef\gasrx{\the\numexpr\pdfuniformdeviate 10001\relax}%
+        \edef\gasry{\the\numexpr\pdfuniformdeviate 10001\relax}%
+        \pgfmathparse{\gas@xmax<\gas@xmin ? 1 : 0}%
+        \ifnum\pgfmathresult=1
+          \pgfmathsetlengthmacro\gasx{#1/2}%
+        \else
+          \pgfmathsetlengthmacro\gasx{\gas@xmin+\gasrx/10000*(\gas@xmax-\gas@xmin)}%
+        \fi
+        \pgfmathparse{\gas@ymax<\gas@ymin ? 1 : 0}%
+        \ifnum\pgfmathresult=1
+          \pgfmathsetlengthmacro\gasy{#2/2}%
+        \else
+          \pgfmathsetlengthmacro\gasy{\gas@ymin+\gasry/10000*(\gas@ymax-\gas@ymin)}%
+        \fi
+        \node[text=gasrefcol,text opacity=\RefGasAlpha,inner sep=0pt,anchor=center]
+          at (\gasx,\gasy) {\RefGasFont\gasname};%
+      }%
+    }%
+  \end{scope}%
+}
+
+\newcommand{\gasbibitem}[3]{%
+  \bibitem{#1}\leavevmode
+  \setlength{\fboxsep}{\RefBoxSep}%
+  \setlength{\fboxrule}{\RefBoxRule}%
+  \sbox{\gas@refbox}{%
+    \begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+      #3%
+    \end{minipage}%
+  }%
+  \noindent\begin{tikzpicture}[baseline=(gas@text.base)]
+    \pgfmathsetlengthmacro\gas@refw{\linewidth}%
+    \pgfmathsetlengthmacro\gas@innerx{\fboxrule+\fboxsep}%
+    \pgfmathsetlengthmacro\gas@innerw{\linewidth-2*\fboxsep-2*\fboxrule}%
+    \pgfmathsetlengthmacro\gas@contenth{\ht\gas@refbox+\dp\gas@refbox}%
+    \pgfmathsetlengthmacro\gas@refh{\gas@contenth+2*\RefBoxVPad}%
+    % Layer 1 — opaque white background over global page gas.
+    \fill[\RefBoxFillColor] (0,0) rectangle (\gas@refw,\gas@refh);
+    \draw[\RefBoxFrameColor,line width=\RefBoxRule] (0,0) rectangle (\gas@refw,\gas@refh);
+    % Layer 2 — cited-author gas above the white fill, clipped to the box interior.
+    \begin{scope}[shift={(\gas@innerx,0)}]
+      \RefGasOverlay{\gas@innerw}{\gas@refh}{#2}%
+    \end{scope}%
+    % Layer 3 — reference body above the author gas.
+    \node[anchor=south west,inner sep=0pt] (gas@text) at (\gas@innerx,\RefBoxVPad)
+      {\usebox{\gas@refbox}};%
+  \end{tikzpicture}\par
+}
+\makeatother
+
+% Convenience environment. This is intentionally just a thin wrapper around
+% the standard thebibliography environment.
+\newenvironment{gasbibliography}[1]{%
+  \begin{thebibliography}{#1}%
+}{%
+  \end{thebibliography}%
+}
+% ---------------------------------------------------------------------
+
+\endinput

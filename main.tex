@@ -1,0 +1,169 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=1.3in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{microtype}
+\usepackage{gasauthor}
+
+% ------------------------- CONFIGURATION ------------------------------
+\def\GasAuthors{Dian Jin,Weihao Cheng,Junze Yuan, Zijian Zhao}% comma list, no spaces after commas
+\def\GasCopies{27}      % K: instances of each author per page
+\def\GasAlpha{0.2}     % text opacity of each instance
+\def\GasSeed{20260611}  % PRNG seed: one seed = one microstate
+\def\GasSat{0.60}       % HSV saturation S
+\def\GasLuma{0.42}      % common luma Y* pinned for every author
+\def\GasHashMult{71}    % hash multiplier (any prime works)
+\def\GasFont{\sffamily\bfseries\fontsize{10.5}{10.5}\selectfont}
+% ----------------------------------------------------------------------
+
+\pdfsetrandomseed\GasSeed
+
+% ----------------------------- theorems -------------------------------
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\lstset{basicstyle=\ttfamily\footnotesize,columns=fullflexible,
+  keepspaces=true,breaklines=true,frame=single,framerule=0.3pt,
+  aboveskip=6pt,belowskip=6pt}
+
+\newcommand{\rsym}{\textcircled{\footnotesize r}}
+
+% ------------------------------ title ---------------------------------
+\title{Every Author as Every Author}
+
+\author{The authors are represented in the page background.}
+
+\date{June 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The author block is an important component of a paper: $n$ authors are assigned to $n$ positions, and a strict ordering is made to appear as though it can summarize a collaboration that is often difficult to quantify. This practice may create conflicts among authors and, in turn, affect academic development. Conventional approaches in academia use randomization or alphabetical ordering, together with an explicit statement that the order carries no information. Yet this remains unfair: the order is still printed, and the reader's attention still falls on the first element. Prior work has addressed this issue by typesetting every author at the same position, but this introduces a serious obstacle to readability. We study the opposite, high-entropy regime. We regard the author block as a container and author names as an ideal gas diffusing within it. Each author's name appears several times per page, in the same font and at the same size, with positions drawn independently and uniformly over the page. Thus, every author has the same distribution. This makes it difficult for readers to identify a unique first author and thereby ensures fairness.
+
+\end{abstract}
+
+\section{Introduction}
+
+Author order turns a group of collaborators into a line of names. This is a simple typographic choice, but it has strong consequences. A paper is often produced by several people whose work is mixed, overlapping, and hard to compare exactly \cite{tscharntke2007author}. Still, the author block must usually be printed as first, second, third, and so on. Readers and institutions then treat this order as a signal of credit, contribution, or status, and usually focus on the only first author \cite{cormode2013first}. The problem is therefore not only which ordering rule is fair. The deeper problem is that the page forces a group to appear as a sequence.
+
+
+Whichever convention is used, author order performs a signaling function far beyond its typographic role: it not only lists participants, but is also interpreted by readers, evaluation systems, and indexing services as an ordering of contribution, seniority, or prestige. Consequently, how to display the author block fairly has become a question worthy of separate discussion. Existing approaches can be roughly divided into three categories.
+
+The first category is {declarative fairness}. These approaches do not alter the typographic form of the author block, but instead explicitly state contribution relationships through equal-contribution notes, like \cite{vaswani2017attention}. Their advantage is low implementation cost and compatibility with existing publication workflows. However, they do not change the linear author order that readers see on the page. Even when several authors are declared to be equal contributors, the typeset text still contains a first name, a second name, and a last name; the visual order itself continues to generate residual hierarchy.
+Some papers also adopt alphabetical ordering and explicitly state, for example, “Alphabetical by first name.” However, this approach is not fair either, as it systematically disadvantages authors whose names appear later in the alphabet. 
+Besides, there are also papers draw the author order at random, so that the status of “first author” becomes fair in the long-run statistical sense. One method, AMOR \cite{weiherer2024amor}, randomizes the author list at view time, so every author can occupy the first position in some realization; however, this dynamic order cannot be faithfully printed and depends on specific PDF viewers. Economics has already implemented an authenticated version of randomization: a uniformly randomized author order is explicitly marked, with the symbol \rsym\ indicating that the order carries no information~\cite{ray2018certified}. However, for any particular paper, the page still displays a definite permutation. No matter how innocent the sampling procedure is, an order has still been printed, and the reader's first glance still lands on some particular name. Randomization removes long-run bias, but not the instantaneous positional advantage within a single paper.
+
+The second category is {geometric delinearization} \cite{demaine}. These approaches attempt to replace the traditional left-to-right, top-to-bottom author list with circular, grid-based, radial, or otherwise nonlinear layouts, weakening the linear reading order so that the author block no longer explicitly appears as a one-dimensional permutation. Yet geometric layouts usually retain implicit order: a circular layout still has a starting point and an orientation; a grid still has an upper-left corner, a center, and margins; and a radial layout may introduce a distinction between central and peripheral nodes. Such methods attenuate author order, but they do not fully eliminate positional semantics.
+
+The third category is {co-locational fairness}, whose most radical proposal prints all author names at the same position \cite{demaine}, so that every author is, literally and simultaneously, the first author. This method directly abolishes the distinction between multiple author slots and is conceptually highly egalitarian. From a physical perspective, this superposed authorship is the zero-temperature phase of the author block: all authors are frozen into the ground state. However, this equality is achieved through complete collision; readability decreases with the number of authors $n$, because glyph collision is precisely the design intent.
+
+This paper takes the opposite side. Rather than cooling the author block until all names coincide, we heat it until “position” ceases to be meaningful. In the {ideal-gas author block}, each author's name appears $K$ times on every page, using the same font and font size as every other author, with positions independently and uniformly sampled over the page. An author no longer corresponds to a definite slot, but to the same spatial distribution as every other author. No author enjoys an advantage in positional distribution, typography, or visual salience, while a reader can recover the complete author set by glancing at any page. 
+% In other words, existing methods attempt to reinterpret, randomize, bend, or compress author order; this paper replaces author order directly with an author distribution.
+
+
+
+
+\section{Methods}
+
+\subsection{Page model}
+
+We model each page as a two-dimensional container
+\[
+\Omega = [0,W]\times[0,H],
+\]
+where $W$ and $H$ denote the physical width and height of the page. The set of authors is denoted by
+\[
+A=\{a_1,a_2,\ldots,a_n\}.
+\]
+Instead of assigning these authors to a one-dimensional ordered list, we assign each author a spatial point process over the page. Thus, authorship is represented not as a permutation of $A$, but as a distribution on $\Omega$.
+
+For each page, every author $a_i$ is instantiated $K$ times. Each instance is treated as an author-particle. The total number of author-particles on a page is therefore $nK$. All author-particles are placed in a background layer beneath the main textual content.
+
+\subsection{Author-particle sampling}
+
+For each author $a_i$ and copy index $j\in\{1,\ldots,K\}$, we sample an independent position
+\[
+X_{ij}=(x_{ij},y_{ij}) \sim \mathrm{Unif}(\Omega).
+\]
+Equivalently,
+\[
+x_{ij}\sim \mathrm{Unif}(0,W),\qquad
+y_{ij}\sim \mathrm{Unif}(0,H),
+\]
+with all samples mutually independent. The same sampling rule is used for every author. Hence, for any two authors $a_i$ and $a_\ell$, their marginal spatial distributions are identical:
+\[
+X_{ij}\overset{d}{=}X_{\ell j}.
+\]
+No author receives a privileged region, anchor point, orientation, or ordering convention.
+The model intentionally permits collisions, but we believe this is acceptable.
+
+\subsection{Typography and opacity}
+
+Each author name is typeset using the same font family, weight, size, and opacity. Let $\alpha$ denote the opacity of each author-particle. In the implementation used for this paper, every author-particle is rendered with opacity $\alpha$ and with a fixed font command. Therefore, visual salience cannot be attributed to typographic differences between authors.
+
+The parameter $K$ controls author density. Larger $K$ increases the probability that every page visibly contains all authors, but also increases background texture. Smaller $K$ reduces visual noise, but weakens the local recoverability of the author set. In this sense, $K$ plays the role of a density parameter, while $\alpha$ controls the optical pressure exerted by the author gas on the page.
+
+\subsection{Color and luminance normalization}
+
+To help readers distinguish repeated instances of the same author, each author is assigned a deterministic hue. The hue is computed by hashing the characters of the author name. However, hue alone is not sufficient: different hues may have different perceived brightness when rendered on a page.
+
+Therefore, all author colors are normalized to share a common luminance target. Saturation is fixed globally, and the value channel is adjusted so that the perceived luma of every author color is approximately the same. This prevents one author from becoming visually dominant merely because their assigned hue is brighter.
+
+% \subsection{Random seed and reproducibility}
+
+% The layout is generated using a fixed pseudorandom seed. A seed determines one microstate of the author gas. Changing the seed produces a different microscopic arrangement while preserving the same macroscopic fairness constraints: identical distribution, identical typography, identical opacity, and equalized luminance for all authors.
+
+% This distinction mirrors the statistical-mechanical interpretation of the construction. A particular PDF contains one sampled microstate, but the fairness claim concerns the ensemble rule that generates the page. Since all authors are sampled from the same distribution, no author has an ex ante positional advantage.
+
+\subsection{Layering and readability}
+
+The author gas is placed beneath the body text, equations, figures, and tables. The main  content is therefore rendered as the foreground layer, while author-particles occupy the background layer. This separation allows the author distribution to remain visible without replacing the ordinary reading order of the paper itself.
+
+% The method does not attempt to make the author names maximally legible at every point. Instead, it aims for weak but persistent recoverability: the reader should be able to perceive the complete author set by scanning the page, while the body text remains the dominant reading object.
+
+\subsection{Bibliographic author gas}
+
+The same principle is applied to the bibliography. Standard reference lists impose a local author order inside each cited work and often truncate authors through the \textit{et al.} convention. To avoid reproducing this hierarchy, each bibliographic entry is treated as a small sealed container.
+
+Within the container associated with a reference, the cited authors are rendered as a local author gas. Their names are scattered uniformly inside the entry region, while the title, venue, and year remain in ordinary text. Thus, the cited work remains identifiable, but its authors are no longer presented as a linear ordered list.
+
+
+
+\section{Discussion}
+
+The ideal-gas author block eliminates author order by replacing a fixed permutation with a spatial distribution. Its fairness is therefore not based on interpreting a printed order differently, but on preventing such an order from being printed in the first place. Since every author is sampled from the same spatial distribution and rendered with the same typographic parameters, no author receives a privileged slot, anchor point, or visual hierarchy.
+
+This construction also clarifies a limitation of many existing solutions. Equal-contribution notes and randomized ordering still leave a visible first position on the page. Geometric layouts weaken linear order, but often introduce new spatial semantics, such as center versus periphery or upper-left versus lower-right. By contrast, the gas model removes the idea of a unique author position altogether. Authorship becomes an ensemble property of the page rather than a sequence at the top of the manuscript.
+
+The method is not without practical costs. A dense author gas can introduce visual noise, especially for papers with many authors. The parameters $K$ and $\alpha$ therefore control a tradeoff between recoverability and distraction. Similarly, color improves grouping but may behave differently across screens, printers, and accessibility settings. 
+
+Another limitation is compatibility with existing scholarly infrastructure. Indexing systems, citation databases, submission portals, and tenure committees generally expect a linear author list. The proposed design is therefore best understood as a typographic intervention rather than a complete replacement for metadata. A practical implementation may still store the author set in machine-readable form while rendering the human-facing page as an author gas.
+
+Finally, the bibliography extension shows that author-order hierarchy is not confined to the byline. Reference lists also rank cited authors typographically and often erase most of them through \textit{et al.} Treating each reference as a local gas makes this hierarchy visible by removing it. 
+
+\section{Conclusion}
+
+We proposed the ideal-gas author block, a typographic model in which every author appears as a spatial distribution rather than as an element of a linear order. Each author is rendered with identical typographic parameters and sampled from the same page-level distribution, so no author is assigned a privileged position. The same principle can also be applied locally to bibliographic entries, replacing ordered cited-author lists with miniature author gases.
+
+This work offers a typographic mechanism for reducing the visual dominance of author order while preserving equal visibility for all collaborators. When applied to bibliography entries, it extends the same principle to cited work: citation credit is no longer visually concentrated in the first few listed names, but can be redistributed across all cited authors inside the reference block. The method is not intended to replace explicit contribution statements or disciplinary authorship conventions. Rather, it provides an additional visual layer for representing collective scholarly labor in a less ordinal and less position-dependent form. In this sense, the ideal-gas author block advances a simple principle: every author, as every author.
+
+
+% The central claim is simple: if author order is the problem, then the page should stop printing an order. By turning the author block from a permutation into a distribution, every author becomes equally present, equally unranked, and equally impossible to call first.
+
+\newpage
+
+\bibliographystyle{gasbib}
+\bibliography{references}
+
+\end{document}
